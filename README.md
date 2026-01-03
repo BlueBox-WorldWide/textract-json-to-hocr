@@ -33,16 +33,16 @@ pip install textract-hocr
 ### From source
 
 ```bash
-git clone https://github.com/your-username/textract-json-to-hocr.git
-cd textract-json-to-hocr
+git clone https://github.com/BlueBox-WorldWide/textract-hocr.git
+cd textract-hocr
 pip install -e .
 ```
 
 ### Development installation
 
 ```bash
-git clone https://github.com/your-username/textract-json-to-hocr.git
-cd textract-json-to-hocr
+git clone https://github.com/BlueBox-WorldWide/textract-hocr.git
+cd textract-hocr
 pip install -e ".[dev]"
 ```
 
@@ -282,7 +282,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 If you encounter any issues or have questions:
 
-1. Check existing [GitHub Issues](https://github.com/BlueBox-WorldWide/textract-json-to-hocr/issues)
+1. Check existing [GitHub Issues](https://github.com/BlueBox-WorldWide/textract-hocr/issues)
 2. Create a new issue with:
    - Your Python version
    - The error message or unexpected behavior

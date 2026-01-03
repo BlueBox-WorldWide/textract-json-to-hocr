@@ -41,9 +41,9 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/your-username/textract-json-to-hocr"
-"Bug Reports" = "https://github.com/your-username/textract-json-to-hocr/issues"
-"Source" = "https://github.com/your-username/textract-json-to-hocr"
+"Homepage" = "https://github.com/BlueBox-WorldWide/textract-hocr"
+"Bug Reports" = "https://github.com/BlueBox-WorldWide/textract-hocr/issues"
+"Source" = "https://github.com/BlueBox-WorldWide/textract-hocr"
 "Original AWS Samples" = "https://github.com/aws-samples/amazon-textract-hocr-output"
 
 [project.scripts]
