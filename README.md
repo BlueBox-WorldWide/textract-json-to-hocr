@@ -10,8 +10,11 @@ Based on [amazon-textract-hocr-output](https://github.com/aws-samples/amazon-tex
 ## Features
 
 - ✅ Convert Textract JSON to hOCR HTML format
+- ✅ **hOCR 1.2 compliant output**
 - ✅ Support for single and multi-page documents
-- ✅ **Table and cell extraction with proper HTML table structure**
+- ✅ **Table extraction with full line/word structure**
+- ✅ **Intelligent block grouping based on vertical overlap**
+- ✅ **Content ordered by vertical position (top to bottom)**
 - ✅ Extract specific pages or page ranges from multi-page documents
 - ✅ Automatic dimension detection from source images (PNG, JPEG, TIFF)
 - ✅ PDF dimension extraction support
@@ -19,7 +22,7 @@ Based on [amazon-textract-hocr-output](https://github.com/aws-samples/amazon-tex
 - ✅ Fallback to Textract's default 1000x1000 dimensions
 - ✅ Command-line interface and Python library
 - ✅ Preserves text confidence scores and bounding boxes
-- ✅ **Handles TABLE and CELL blocks with rowspan/colspan support**
+- ✅ **Tables include complete ocr_line and ocrx_word structure**
 - ✅ Compatible with hOCR-based tools (Tesseract, OCRopus, etc.)
 
 ## Installation
@@ -221,24 +224,32 @@ Textract returns normalized coordinates (0-1 range). This tool converts them to 
 
 The generated hOCR HTML includes:
 
-- Standtable` tables with proper HTML table structure
-- `ocrx_table_cell` cells with rowspan/colspan support
+- hOCR 1.2 compliant structure with proper DOCTYPE and metadata
+- `ocr_page` divs with page dimensions
+- `ocr_block` divs grouping lines with overlapping vertical positions
+- `ocr_table` divs for tables with complete line and word structure
 - `ocr_line` spans for text lines
 - `ocrx_word` spans for individual words
 - Bounding boxes in `bbox left top right bottom` format
 - Confidence scores in `x_wconf` property
 - Proper baseline information for line elements
+- Content ordered by vertical position (top to bottom on page)
+
+### Block Grouping
+
+Lines are grouped into `ocr_block` divs based on vertical overlap:
+- Lines with overlapping Y-axis positions are grouped together
+- Creates natural paragraph-like blocks without explicit paragraph detection
+- Blocks use synthetic IDs (e.g., `block_1_1`, `block_2_1`)
+- Each block's bounding box encompasses all contained lines
 
 ### Table Support
 
-Tables detected by Textract are converted to proper HTML `<table>` elements with:
-- Proper row (`<tr>`) and cell (`<td>`) structure
-- Cell positioning based on `RowIndex` and `ColumnIndex`
-- Merged cells using `rowspan` and `colspan` attributes
-- Bounding boxes and confidence scores for each cell
-- Text content extracted from WORD blocks within cellm` format
-- Confidence scores in `x_wconf` property
-- Proper baseline information for line elements
+Tables detected by Textract are converted to float div elements with `ocr_table` class:
+- `ocr_table` rendered as `<div>` float elements (no HTML table structure)
+- Each cell's content rendered as `ocr_line` spans containing `ocrx_word` spans
+- Cell content in reading order (row by row, left to right)
+- Bounding box and confidence score for the table region
 
 ## Requirements
 
@@ -267,14 +278,14 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - [aws-samples/amazon-textract-hocr-output](https://github.com/aws-samples/amazon-textract-hocr-output) - Original implementation
 - [AWS Textract](https://aws.amazon.com/textract/) - AWS OCR service
-- [hocr-tools](https://github.com/ocropus/hocr-tools) - Tools for working with hOCR files
+- [hOCR 1.2 Spec](http://kba.github.io/hocr-spec/1.2/) - hOCR 1.2 spec documentation
 - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) - Popular open-source OCR engine with hOCR support
 
 ## Support
 
 If you encounter any issues or have questions:
 
-1. Check existing [GitHub Issues](https://github.com/your-username/textract-json-to-hocr/issues)
+1. Check existing [GitHub Issues](https://github.com/BlueBox-WorldWide/textract-json-to-hocr/issues)
 2. Create a new issue with:
    - Your Python version
    - The error message or unexpected behavior
@@ -283,7 +294,7 @@ If you encounter any issues or have questions:
 
 ## Changelog
 
-### 1.0.0 (2025-12-31)
+### 1.0.0 (2026-01-05)
 
 - Initial release
 - Support for single and multi-page conversion

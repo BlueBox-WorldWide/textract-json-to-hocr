@@ -153,6 +153,46 @@ def _convert_single_page(
     result_data = {1: {"lines": {}, "tables": {}}}
     page_dimensions = {1: get_document_dimensions(source_file, 1, dimensions)}
 
+    # First pass: collect all WORD IDs that belong to table cells
+    table_word_ids = set()
+    table_line_ids = set()
+    
+    for block in result["Blocks"]:
+        if block["BlockType"] == "TABLE":
+            # Find all CELL children of this table
+            if "Relationships" in block:
+                for relationship in block["Relationships"]:
+                    if relationship["Type"] == "CHILD":
+                        for cell_id in relationship["Ids"]:
+                            # Find the cell block and get its children (WORD or LINE)
+                            for cell_block in result["Blocks"]:
+                                if cell_block["Id"] == cell_id and cell_block["BlockType"] == "CELL":
+                                    if "Relationships" in cell_block:
+                                        for cell_rel in cell_block["Relationships"]:
+                                            if cell_rel["Type"] == "CHILD":
+                                                # Collect all child IDs (could be WORD or LINE)
+                                                for child_id in cell_rel["Ids"]:
+                                                    for child_block in result["Blocks"]:
+                                                        if child_block["Id"] == child_id:
+                                                            if child_block["BlockType"] == "LINE":
+                                                                table_line_ids.add(child_id)
+                                                            elif child_block["BlockType"] == "WORD":
+                                                                table_word_ids.add(child_id)
+                                                            break
+                                    break
+    
+    # Find all LINE blocks that contain any of the table words
+    for block in result["Blocks"]:
+        if block["BlockType"] == "LINE" and "Relationships" in block:
+            for relationship in block["Relationships"]:
+                if relationship["Type"] == "CHILD":
+                    # Check if any word in this line belongs to a table
+                    for word_id in relationship["Ids"]:
+                        if word_id in table_word_ids:
+                            table_line_ids.add(block["Id"])
+                            break
+
+    # Second pass: process all blocks
     for block in result["Blocks"]:
         if block["BlockType"] == "LINE":
             _add_line_block(result_data[1]["lines"], block, result["Blocks"])
@@ -171,6 +211,46 @@ def _convert_multiple_pages(
     result_data = {}
     page_dimensions = {}
 
+    # First pass: collect all WORD IDs that belong to table cells
+    table_word_ids = set()
+    table_line_ids = set()
+    
+    for block in result["Blocks"]:
+        if block["BlockType"] == "TABLE":
+            # Find all CELL children of this table
+            if "Relationships" in block:
+                for relationship in block["Relationships"]:
+                    if relationship["Type"] == "CHILD":
+                        for cell_id in relationship["Ids"]:
+                            # Find the cell block and get its children (WORD or LINE)
+                            for cell_block in result["Blocks"]:
+                                if cell_block["Id"] == cell_id and cell_block["BlockType"] == "CELL":
+                                    if "Relationships" in cell_block:
+                                        for cell_rel in cell_block["Relationships"]:
+                                            if cell_rel["Type"] == "CHILD":
+                                                # Collect all child IDs (could be WORD or LINE)
+                                                for child_id in cell_rel["Ids"]:
+                                                    for child_block in result["Blocks"]:
+                                                        if child_block["Id"] == child_id:
+                                                            if child_block["BlockType"] == "LINE":
+                                                                table_line_ids.add(child_id)
+                                                            elif child_block["BlockType"] == "WORD":
+                                                                table_word_ids.add(child_id)
+                                                            break
+                                    break
+    
+    # Find all LINE blocks that contain any of the table words
+    for block in result["Blocks"]:
+        if block["BlockType"] == "LINE" and "Relationships" in block:
+            for relationship in block["Relationships"]:
+                if relationship["Type"] == "CHILD":
+                    # Check if any word in this line belongs to a table
+                    for word_id in relationship["Ids"]:
+                        if word_id in table_word_ids:
+                            table_line_ids.add(block["Id"])
+                            break
+
+    # Second pass: process PAGE blocks and initialize
     for block in result["Blocks"]:
         if block["BlockType"] == "PAGE":
             page_num = block["Page"]
@@ -179,10 +259,17 @@ def _convert_multiple_pages(
                 source_file, page_num, dimensions
             )
 
-            # Initialize line placeholders
+            # Initialize line placeholders, excluding table lines
             if "Relationships" in block and block["Relationships"]:
-                for line_id in block["Relationships"][0]["Ids"]:
-                    result_data[page_num]["lines"][line_id] = {}
+                for relationship in block["Relationships"]:
+                    if relationship["Type"] == "CHILD":
+                        for line_id in relationship["Ids"]:
+                            # Only add if it's a LINE and not part of a table
+                            for child_block in result["Blocks"]:
+                                if child_block["Id"] == line_id:
+                                    if child_block["BlockType"] == "LINE" and line_id not in table_line_ids:
+                                        result_data[page_num]["lines"][line_id] = {}
+                                    break
 
         elif block["BlockType"] == "LINE":
             page_num = block["Page"]
@@ -212,17 +299,72 @@ def _extract_page_range(
             source_file, page_num, dimensions
         )
 
-    # Find all blocks belonging to the requested page range
+    # First pass: collect all WORD IDs that belong to table cells
+    # Then find all LINE blocks that contain those words
+    table_word_ids = set()
+    table_line_ids = set()
+    
+    for block in result["Blocks"]:
+        page_num = block.get("Page")
+        if page_num is None or page_num < first_page or page_num > last_page:
+            continue
+            
+        if block["BlockType"] == "TABLE":
+            # Find all CELL children of this table
+            if "Relationships" in block:
+                for relationship in block["Relationships"]:
+                    if relationship["Type"] == "CHILD":
+                        for cell_id in relationship["Ids"]:
+                            # Find the cell block and get its children (WORD or LINE)
+                            for cell_block in result["Blocks"]:
+                                if cell_block["Id"] == cell_id and cell_block["BlockType"] == "CELL":
+                                    if "Relationships" in cell_block:
+                                        for cell_rel in cell_block["Relationships"]:
+                                            if cell_rel["Type"] == "CHILD":
+                                                # Collect all child IDs (could be WORD or LINE)
+                                                for child_id in cell_rel["Ids"]:
+                                                    for child_block in result["Blocks"]:
+                                                        if child_block["Id"] == child_id:
+                                                            if child_block["BlockType"] == "LINE":
+                                                                table_line_ids.add(child_id)
+                                                            elif child_block["BlockType"] == "WORD":
+                                                                table_word_ids.add(child_id)
+                                                            break
+                                    break
+    
+    # Now find all LINE blocks that contain any of the table words
+    for block in result["Blocks"]:
+        if block["BlockType"] == "LINE" and "Relationships" in block:
+            for relationship in block["Relationships"]:
+                if relationship["Type"] == "CHILD":
+                    # Check if any word in this line belongs to a table
+                    for word_id in relationship["Ids"]:
+                        if word_id in table_word_ids:
+                            table_line_ids.add(block["Id"])
+                            break
+
+    # Second pass: find all blocks belonging to the requested page range
     for block in result["Blocks"]:
         page_num = block.get("Page")
         if page_num is None or page_num < first_page or page_num > last_page:
             continue
 
         if block["BlockType"] == "PAGE":
-            # Get line IDs for this page
-            if "Relationships" in block and len(block["Relationships"]) > 0:
-                for line in block["Relationships"][0]["Ids"]:
-                    result_data[page_num]["lines"][line] = {}
+            # Get line IDs for this page, excluding those that belong to tables
+            if "Relationships" in block:
+                for relationship in block["Relationships"]:
+                    if relationship["Type"] == "CHILD":
+                        for child_id in relationship["Ids"]:
+                            # Skip if this child is a TABLE or a LINE that belongs to a table
+                            # Check if it's a LINE (not a TABLE)
+                            child_is_line = False
+                            for child_block in result["Blocks"]:
+                                if child_block["Id"] == child_id:
+                                    if child_block["BlockType"] == "LINE" and child_id not in table_line_ids:
+                                        child_is_line = True
+                                    break
+                            if child_is_line:
+                                result_data[page_num]["lines"][child_id] = {}
 
         elif block["BlockType"] == "LINE":
             _add_line_block(result_data[page_num]["lines"], block, result["Blocks"])
@@ -273,17 +415,29 @@ def _add_table_block(page_data: dict, table_block: dict, all_blocks: list) -> No
                             row_span = cell_block.get("RowSpan", 1)
                             col_span = cell_block.get("ColumnSpan", 1)
                             
-                            # Extract text from cell
-                            cell_text = ""
+                            # Extract LINE IDs and WORD data from cell
+                            line_ids = []
+                            words_data = []
                             if "Relationships" in cell_block:
                                 for rel in cell_block["Relationships"]:
                                     if rel["Type"] == "CHILD":
-                                        for word_id in rel["Ids"]:
-                                            for word_block in all_blocks:
-                                                if word_block["Id"] == word_id and word_block["BlockType"] == "WORD":
-                                                    if cell_text:
-                                                        cell_text += " "
-                                                    cell_text += word_block["Text"]
+                                        for child_id in rel["Ids"]:
+                                            # Check if this is a LINE or WORD block
+                                            for child_block in all_blocks:
+                                                if child_block["Id"] == child_id:
+                                                    if child_block["BlockType"] == "LINE":
+                                                        line_ids.append(child_id)
+                                                    elif child_block["BlockType"] == "WORD":
+                                                        # Store complete word data
+                                                        words_data.append({
+                                                            "Id": child_id,
+                                                            "Text": child_block["Text"],
+                                                            "Confidence": child_block.get("Confidence", 100.0),
+                                                            "TextType": child_block.get("TextType", "PRINTED"),
+                                                            "BoundingBox": child_block["Geometry"]["BoundingBox"],
+                                                            "Polygon": child_block["Geometry"]["Polygon"],
+                                                        })
+                                                    break
                             
                             page_data[table_id]["Cells"][cell_id] = {
                                 "BlockType": cell_block["BlockType"],
@@ -292,7 +446,8 @@ def _add_table_block(page_data: dict, table_block: dict, all_blocks: list) -> No
                                 "ColumnIndex": col_index,
                                 "RowSpan": row_span,
                                 "ColumnSpan": col_span,
-                                "Text": cell_text,
+                                "LineIds": line_ids,
+                                "Words": words_data,
                                 "BoundingBox": {
                                     "Width": cell_block["Geometry"]["BoundingBox"]["Width"],
                                     "Height": cell_block["Geometry"]["BoundingBox"]["Height"],
@@ -389,7 +544,7 @@ def _build_hocr_html(result_data: dict, page_dimensions: dict) -> str:
     with tag("html", xmlns="http://www.w3.org/1999/xhtml", lang="en"):
         with tag("head"):
             with tag("title"):
-                text("AWS Textract hOCR Output")
+                text("")
             doc.stag(
                 "meta",
                 ("http-equiv", "Content-Type"),
@@ -399,7 +554,7 @@ def _build_hocr_html(result_data: dict, page_dimensions: dict) -> str:
             doc.stag(
                 "meta",
                 name="ocr-capabilities",
-                content="ocr_page ocr_carea ocr_par ocr_line ocrx_word ocr_table ocrx_table_cell",
+                content="ocr_page ocr_block ocr_table ocr_line ocrx_word",
             )
 
         with tag("body"):
@@ -420,25 +575,108 @@ def _add_page_content(
     page_bbox = f"bbox 0 0 {width} {height}; ppageno {page_num - 1}"
 
     with tag("div", klass="ocr_page", id=f"page_{page_num}", title=page_bbox):
-        with tag("div", klass="ocr_carea", id=f"carea_1_{page_num}"):
-            # Add tables first
-            for table_id, table_data in page_data.get("tables", {}).items():
-                if not table_data:  # Skip empty placeholders
-                    continue
-                _add_table_content(doc, tag, text, table_id, table_data, width, height)
-            
-            # Add lines (text outside tables)
-            with tag("p", klass="ocr_par", id=f"par_1_{page_num}", lang="eng"):
-                for line_id, line_data in page_data.get("lines", {}).items():
-                    if not line_data:  # Skip empty placeholders
-                        continue
-                    _add_line_content(doc, tag, text, line_id, line_data, width, height)
+        # Collect all content (tables and lines) with their vertical positions
+        content_items = []
+        
+        # Collect all line IDs that belong to tables
+        table_line_ids = set()
+        for table_id, table_data in page_data.get("tables", {}).items():
+            if table_data:
+                for cell_id, cell_data in table_data["Cells"].items():
+                    table_line_ids.update(cell_data.get("LineIds", []))
+        
+        # Add tables with their top position
+        for table_id, table_data in page_data.get("tables", {}).items():
+            if table_data:  # Skip empty placeholders
+                top_pos = table_data["BoundingBox"]["Top"]
+                content_items.append((top_pos, "table", table_id, table_data))
+        
+        # Add lines with their top position, excluding table lines
+        for line_id, line_data in page_data.get("lines", {}).items():
+            if line_data and line_id not in table_line_ids:  # Skip empty placeholders and table lines
+                top_pos = line_data["BoundingBox"]["Top"]
+                content_items.append((top_pos, "line", line_id, line_data))
+        
+        # Sort by vertical position (top to bottom)
+        content_items.sort(key=lambda x: x[0])
+        
+        # Group lines into blocks based on bbox intersection
+        current_block_lines = []
+        block_counter = 1
+        last_line_bbox = None
+        
+        for _, content_type, content_id, content_data in content_items:
+            if content_type == "table":
+                # Output any pending block first
+                if current_block_lines:
+                    _add_block_with_lines(doc, tag, text, block_counter, page_num, current_block_lines, width, height)
+                    current_block_lines = []
+                    block_counter += 1
+                
+                # Output the table
+                _add_table_content(doc, tag, text, content_id, content_data, width, height, page_data.get("lines", {}))
+                last_line_bbox = None  # Reset bbox tracking after table
+            else:
+                # Check if this line's bbox intersects with the last line's bbox
+                current_bbox = content_data["BoundingBox"]
+                
+                if last_line_bbox is not None and not _bboxes_intersect(last_line_bbox, current_bbox):
+                    # No intersection - start a new block
+                    if current_block_lines:
+                        _add_block_with_lines(doc, tag, text, block_counter, page_num, current_block_lines, width, height)
+                        current_block_lines = []
+                        block_counter += 1
+                
+                # Add line to current block
+                current_block_lines.append((content_id, content_data))
+                last_line_bbox = current_bbox
+        
+        # Output any remaining block
+        if current_block_lines:
+            _add_block_with_lines(doc, tag, text, block_counter, page_num, current_block_lines, width, height)
+
+
+def _bboxes_intersect(bbox1: dict, bbox2: dict) -> bool:
+    """Check if two bounding boxes have overlapping Y-axis (vertical overlap)."""
+    # Get Y coordinates (vertical positions)
+    top1 = bbox1["Top"]
+    bottom1 = bbox1["Top"] + bbox1["Height"]
+    
+    top2 = bbox2["Top"]
+    bottom2 = bbox2["Top"] + bbox2["Height"]
+    
+    # Check for Y-axis overlap (same reading order)
+    return top1 < bottom2 and bottom1 > top2
+
+
+def _add_block_with_lines(
+    doc, tag, text, block_counter: int, page_num: int, lines: list, width: int, height: int
+) -> None:
+    """Add a block containing multiple lines with a synthetic ID."""
+    # Calculate combined bbox for all lines in the block
+    min_left = min(line_data["BoundingBox"]["Left"] for _, line_data in lines)
+    min_top = min(line_data["BoundingBox"]["Top"] for _, line_data in lines)
+    max_right = max(line_data["BoundingBox"]["Left"] + line_data["BoundingBox"]["Width"] for _, line_data in lines)
+    max_bottom = max(line_data["BoundingBox"]["Top"] + line_data["BoundingBox"]["Height"] for _, line_data in lines)
+    
+    # Convert to pixels
+    left = int(min_left * width)
+    top = int(min_top * height)
+    right = int(max_right * width)
+    bottom = int(max_bottom * height)
+    
+    block_bbox = f"bbox {left} {top} {right} {bottom}"
+    block_title = f"{block_bbox}"
+    
+    with tag("div", klass="ocr_block", id=f"block_{block_counter}_{page_num}", title=block_title, lang="eng"):
+        for line_id, line_data in lines:
+            _add_line_content(doc, tag, text, line_id, line_data, width, height)
 
 
 def _add_table_content(
-    doc, tag, text, table_id: str, table_data: dict, width: int, height: int
+    doc, tag, text, table_id: str, table_data: dict, width: int, height: int, all_lines: dict
 ) -> None:
-    """Add a table and its cells to the hOCR document."""
+    """Add a table as a float element with ocr_table class, including line and word structure."""
     bbox = table_data["BoundingBox"]
 
     # Convert normalized coordinates to pixels
@@ -448,57 +686,52 @@ def _add_table_content(
     bottom = int((bbox["Top"] + bbox["Height"]) * height)
 
     table_bbox = f"bbox {left} {top} {right} {bottom}"
+    confidence = int(table_data.get("Confidence", 0))
+    table_title = f"{table_bbox}; x_wconf {confidence}"
     
-    # Determine table dimensions (rows and columns)
-    max_row = 0
-    max_col = 0
-    for cell_data in table_data["Cells"].values():
-        max_row = max(max_row, cell_data["RowIndex"] + cell_data["RowSpan"] - 1)
-        max_col = max(max_col, cell_data["ColumnIndex"] + cell_data["ColumnSpan"] - 1)
-
-    with tag("table", klass="ocr_table", id=table_id, title=table_bbox):
-        # Build table structure row by row
-        for row in range(1, max_row + 2):  # RowIndex is 1-based
-            row_cells = []
-            for cell_id, cell_data in table_data["Cells"].items():
-                if cell_data["RowIndex"] == row:
-                    row_cells.append((cell_data["ColumnIndex"], cell_id, cell_data))
+    # Render as a float div element with ocr_table class
+    with tag("div", klass="ocr_table", id=table_id, title=table_title):
+        # Sort cells by row, then column for reading order
+        sorted_cells = sorted(
+            table_data["Cells"].items(),
+            key=lambda x: (x[1]["RowIndex"], x[1]["ColumnIndex"])
+        )
+        
+        # Add lines and words from each cell in reading order
+        for cell_id, cell_data in sorted_cells:
+            line_ids = cell_data.get("LineIds", [])
+            words_data = cell_data.get("Words", [])
             
-            if row_cells:
-                row_cells.sort(key=lambda x: x[0])  # Sort by column index
-                with tag("tr"):
-                    for col_idx, cell_id, cell_data in row_cells:
-                        _add_cell_content(doc, tag, text, cell_id, cell_data, width, height)
-
-
-def _add_cell_content(
-    doc, tag, text, cell_id: str, cell_data: dict, width: int, height: int
-) -> None:
-    """Add a table cell to the hOCR document."""
-    bbox = cell_data["BoundingBox"]
-
-    # Convert normalized coordinates to pixels
-    cell_left = int(bbox["Left"] * width)
-    cell_top = int(bbox["Top"] * height)
-    cell_right = int((bbox["Left"] + bbox["Width"]) * width)
-    cell_bottom = int((bbox["Top"] + bbox["Height"]) * height)
-
-    cell_bbox = f"bbox {cell_left} {cell_top} {cell_right} {cell_bottom}"
-    cell_title = f"{cell_bbox}; x_wconf {int(cell_data['Confidence'])}"
-
-    # Add rowspan/colspan attributes if needed
-    attrs = {
-        "class": "ocrx_table_cell",
-        "id": cell_id,
-        "title": cell_title,
-    }
-    if cell_data["RowSpan"] > 1:
-        attrs["rowspan"] = str(cell_data["RowSpan"])
-    if cell_data["ColumnSpan"] > 1:
-        attrs["colspan"] = str(cell_data["ColumnSpan"])
-
-    with tag("td", **attrs):
-        text(cell_data["Text"])
+            # Render existing LINE blocks
+            for line_id in line_ids:
+                if line_id in all_lines:
+                    _add_line_content(doc, tag, text, line_id, all_lines[line_id], width, height)
+            
+            # For cells with direct WORD children (no LINE), create synthetic line
+            if words_data and not line_ids:
+                # Create a synthetic line span for the cell's words
+                cell_bbox = cell_data["BoundingBox"]
+                left = int(cell_bbox["Left"] * width)
+                top = int(cell_bbox["Top"] * height)
+                right = int((cell_bbox["Left"] + cell_bbox["Width"]) * width)
+                bottom = int((cell_bbox["Top"] + cell_bbox["Height"]) * height)
+                line_bbox = f"bbox {left} {top} {right} {bottom}"
+                line_title = f"{line_bbox}; baseline 0 0"
+                
+                with tag("span", klass="ocr_line", id=f"{cell_id}_line", title=line_title):
+                    for word_data in words_data:
+                        word_id = word_data["Id"]
+                        word_bbox = word_data["BoundingBox"]
+                        word_left = int(word_bbox["Left"] * width)
+                        word_top = int(word_bbox["Top"] * height)
+                        word_right = int((word_bbox["Left"] + word_bbox["Width"]) * width)
+                        word_bottom = int((word_bbox["Top"] + word_bbox["Height"]) * height)
+                        word_title = (
+                            f"bbox {word_left} {word_top} {word_right} {word_bottom}; "
+                            f"x_wconf {int(word_data['Confidence'])}"
+                        )
+                        with tag("span", klass="ocrx_word", id=word_id, title=word_title):
+                            text(word_data["Text"])
 
 
 def _add_line_content(

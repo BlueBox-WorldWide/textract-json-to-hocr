@@ -14,10 +14,6 @@ class TestTableHandling:
         # Check HTML structure
         assert '<?xml version="1.0" encoding="UTF-8"?>' in result
         assert 'ocr_table' in result
-        assert 'ocrx_table_cell' in result
-        
-        # Check table metadata
-        assert 'ocr_table ocrx_table_cell' in result
         
         # Check table content
         assert 'Header1' in result
@@ -26,15 +22,17 @@ class TestTableHandling:
         assert 'Value2' in result
 
     def test_table_structure(self, sample_textract_with_table):
-        """Test that table has proper HTML table structure."""
+        """Test that table is a float div element with ocr_table class."""
         result = textract_to_hocr(sample_textract_with_table)
         
-        # Check for table elements
-        assert '<table' in result
+        # Check for div float structure
+        assert '<div' in result
         assert 'class="ocr_table"' in result
-        assert '<tr>' in result
-        assert '<td' in result
-        assert 'class="ocrx_table_cell"' in result
+        
+        # Should NOT use HTML table structure
+        assert '<table' not in result
+        assert '<tr>' not in result
+        assert '<td' not in result
 
     def test_table_bounding_boxes(self, sample_textract_with_table):
         """Test that table and cells have bounding boxes."""
@@ -146,7 +144,7 @@ class TestTableHandling:
         # Should not crash on empty cells
         result = textract_to_hocr(data)
         assert 'ocr_table' in result
-        assert '<td' in result
+        assert '<div' in result
 
     def test_table_with_rowspan_colspan(self):
         """Test handling of cells with rowspan/colspan."""
@@ -211,10 +209,12 @@ class TestTableHandling:
         
         result = textract_to_hocr(data)
         
-        # Check for rowspan and colspan attributes
-        assert 'rowspan="2"' in result
-        assert 'colspan="3"' in result
+        # Float div structure doesn't use rowspan/colspan
+        assert 'class="ocr_table"' in result
         assert 'Merged Cell' in result
+        # No HTML table attributes
+        assert 'rowspan=' not in result
+        assert 'colspan=' not in result
 
     def test_multipage_with_tables(self):
         """Test multi-page document with tables on different pages."""
@@ -366,3 +366,148 @@ class TestTableHandling:
         assert 'Page1Table' in result
         assert 'Page2Table' in result
         assert result.count('ocr_table') >= 2
+
+    def test_content_ordering_by_vertical_position(self):
+        """Test that content (tables and text) are ordered by vertical position."""
+        data = {
+            "DocumentMetadata": {"Pages": 1},
+            "Blocks": [
+                # Line at top (0.1)
+                {
+                    "BlockType": "LINE",
+                    "Id": "line-top",
+                    "Page": 1,
+                    "Text": "Text at top",
+                    "Confidence": 99.0,
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.5, "Height": 0.05, "Left": 0.1, "Top": 0.1},
+                        "Polygon": [
+                            {"X": 0.1, "Y": 0.1},
+                            {"X": 0.6, "Y": 0.1},
+                            {"X": 0.6, "Y": 0.15},
+                            {"X": 0.1, "Y": 0.15},
+                        ],
+                    },
+                    "Relationships": [{"Type": "CHILD", "Ids": ["word-top"]}],
+                },
+                {
+                    "BlockType": "WORD",
+                    "Id": "word-top",
+                    "Page": 1,
+                    "Text": "Text at top",
+                    "Confidence": 99.0,
+                    "TextType": "PRINTED",
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.5, "Height": 0.05, "Left": 0.1, "Top": 0.1},
+                        "Polygon": [
+                            {"X": 0.1, "Y": 0.1},
+                            {"X": 0.6, "Y": 0.1},
+                            {"X": 0.6, "Y": 0.15},
+                            {"X": 0.1, "Y": 0.15},
+                        ],
+                    },
+                },
+                # Table in middle (0.3)
+                {
+                    "BlockType": "TABLE",
+                    "Id": "table-middle",
+                    "Page": 1,
+                    "Confidence": 98.0,
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.4, "Height": 0.2, "Left": 0.3, "Top": 0.3},
+                        "Polygon": [
+                            {"X": 0.3, "Y": 0.3},
+                            {"X": 0.7, "Y": 0.3},
+                            {"X": 0.7, "Y": 0.5},
+                            {"X": 0.3, "Y": 0.5},
+                        ],
+                    },
+                    "Relationships": [{"Type": "CHILD", "Ids": ["cell-middle"]}],
+                },
+                {
+                    "BlockType": "CELL",
+                    "Id": "cell-middle",
+                    "Page": 1,
+                    "RowIndex": 1,
+                    "ColumnIndex": 1,
+                    "RowSpan": 1,
+                    "ColumnSpan": 1,
+                    "Confidence": 98.0,
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.4, "Height": 0.2, "Left": 0.3, "Top": 0.3},
+                        "Polygon": [
+                            {"X": 0.3, "Y": 0.3},
+                            {"X": 0.7, "Y": 0.3},
+                            {"X": 0.7, "Y": 0.5},
+                            {"X": 0.3, "Y": 0.5},
+                        ],
+                    },
+                    "Relationships": [{"Type": "CHILD", "Ids": ["word-middle"]}],
+                },
+                {
+                    "BlockType": "WORD",
+                    "Id": "word-middle",
+                    "Page": 1,
+                    "Text": "Table",
+                    "Confidence": 98.0,
+                    "TextType": "PRINTED",
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.35, "Height": 0.15, "Left": 0.32, "Top": 0.32},
+                        "Polygon": [
+                            {"X": 0.32, "Y": 0.32},
+                            {"X": 0.67, "Y": 0.32},
+                            {"X": 0.67, "Y": 0.47},
+                            {"X": 0.32, "Y": 0.47},
+                        ],
+                    },
+                },
+                # Line at bottom (0.7)
+                {
+                    "BlockType": "LINE",
+                    "Id": "line-bottom",
+                    "Page": 1,
+                    "Text": "Text at bottom",
+                    "Confidence": 99.0,
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.5, "Height": 0.05, "Left": 0.1, "Top": 0.7},
+                        "Polygon": [
+                            {"X": 0.1, "Y": 0.7},
+                            {"X": 0.6, "Y": 0.7},
+                            {"X": 0.6, "Y": 0.75},
+                            {"X": 0.1, "Y": 0.75},
+                        ],
+                    },
+                    "Relationships": [{"Type": "CHILD", "Ids": ["word-bottom"]}],
+                },
+                {
+                    "BlockType": "WORD",
+                    "Id": "word-bottom",
+                    "Page": 1,
+                    "Text": "Text at bottom",
+                    "Confidence": 99.0,
+                    "TextType": "PRINTED",
+                    "Geometry": {
+                        "BoundingBox": {"Width": 0.5, "Height": 0.05, "Left": 0.1, "Top": 0.7},
+                        "Polygon": [
+                            {"X": 0.1, "Y": 0.7},
+                            {"X": 0.6, "Y": 0.7},
+                            {"X": 0.6, "Y": 0.75},
+                            {"X": 0.1, "Y": 0.75},
+                        ],
+                    },
+                },
+            ],
+        }
+        
+        result = textract_to_hocr(data)
+        
+        # Check order: text should appear before table, table before bottom text
+        top_text_pos = result.find("Text at top")
+        table_pos = result.find("Table")
+        bottom_text_pos = result.find("Text at bottom")
+        
+        assert top_text_pos < table_pos, "Top text should appear before table"
+        assert table_pos < bottom_text_pos, "Table should appear before bottom text"
+        
+        # Should use div tags for blocks
+        assert '<div class="ocr_block"' in result
