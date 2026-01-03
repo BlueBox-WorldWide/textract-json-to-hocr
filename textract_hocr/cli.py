@@ -109,7 +109,7 @@ https://github.com/aws-samples/amazon-textract-hocr-output
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 1.0.0",
+        version="%(prog)s 0.1.0",
     )
 
     parsed_args = parser.parse_args(args)

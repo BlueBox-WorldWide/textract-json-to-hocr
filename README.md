@@ -291,7 +291,7 @@ If you encounter any issues or have questions:
 
 ## Changelog
 
-### 1.0.0 (2026-01-05)
+### 0.1.0 (2026-01-03)
 
 - Initial release
 - Support for single and multi-page conversion

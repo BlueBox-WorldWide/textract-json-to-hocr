@@ -5,7 +5,7 @@ Based on amazon-textract-hocr-output by AWS Samples:
 https://github.com/aws-samples/amazon-textract-hocr-output
 """
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
 __author__ = "textract-hocr contributors"
 __license__ = "MIT"
 
