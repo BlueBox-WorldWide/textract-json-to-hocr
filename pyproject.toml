@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "textract-hocr"
+version = "1.0.0"
+description = "Convert AWS Textract JSON output to hOCR format"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+authors = [
+    {name = "textract-hocr contributors"}
+]
+keywords = ["aws", "textract", "hocr", "ocr", "conversion"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+dependencies = [
+    "yattag>=1.14.0",
+    "Pillow>=9.0.0",
+    "PyPDF2>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-username/textract-json-to-hocr"
+"Bug Reports" = "https://github.com/your-username/textract-json-to-hocr/issues"
+"Source" = "https://github.com/your-username/textract-json-to-hocr"
+"Original AWS Samples" = "https://github.com/aws-samples/amazon-textract-hocr-output"
+
+[project.scripts]
+textract-to-hocr = "textract_hocr.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["textract_hocr*"]
+exclude = ["tests*"]
