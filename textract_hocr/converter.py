@@ -74,11 +74,10 @@ def get_document_dimensions(
         error_msg = (
             f"PDF file '{file_path}' requires explicit dimensions parameter. "
             f"PDFs are rasterized by Textract at a specific DPI, and we cannot determine "
-            f"this from the PDF file alone. Please provide dimensions={'width': X, 'height': Y} "
+            f"this from the PDF file alone. Please provide dimensions using the --width and --height options "
             f"matching the resolution Textract used (typically 200-300 DPI). "
-            f"Example for A4 at 300 DPI: dimensions={{'width': 2480, 'height': 3507}}"
+            f"Example for A4 at 300 DPI: --width 2480 --height 3507"
         )
-        logger.error(error_msg)
         raise ValueError(error_msg)
 
     try:
@@ -90,13 +89,12 @@ def get_document_dimensions(
             return {"width": img.width, "height": img.height}
 
     except Exception as e:
-        logger.warning(f"Could not extract dimensions from '{file_path}': {e}")
-
-    # Fallback to Textract defaults
-    logger.warning(
-        f"Using Textract defaults: {TEXTRACT_DEFAULT_WIDTH}x{TEXTRACT_DEFAULT_HEIGHT}"
-    )
-    return {"width": TEXTRACT_DEFAULT_WIDTH, "height": TEXTRACT_DEFAULT_HEIGHT}
+        error_msg = (
+            f"Could not extract dimensions from '{file_path}'. "
+            f"For PDFs, you must provide the dimensions parameter. "
+            f"For images, ensure the file is a valid image format. Error: {e}"
+        )
+        raise ValueError(error_msg)
 
 
 def textract_to_hocr(
