@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
+    {name = "BlueBox WorldWide"},
     {name = "textract-hocr contributors"}
 ]
 keywords = ["aws", "textract", "hocr", "ocr", "conversion"]
