@@ -348,6 +348,13 @@ If you encounter any issues or have questions:
 
 ## Changelog
 
+### 0.1.3 (2026-01-08)
+
+**Bug Fixes:**
+- Fixed reading order for lines on the same visual line
+- Lines are now correctly grouped by vertical overlap and sorted left-to-right within each group
+- Prevents incorrect grouping of non-overlapping lines
+
 ### 0.1.2 (2026-01-05)
 
 **Improvements:**

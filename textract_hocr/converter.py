@@ -748,16 +748,40 @@ def _add_page_content(
                     (top_pos, height_val, left_pos, "line", line_id, line_data)
                 )
 
-        # Sort using a smart key that groups lines on the same visual line
-        # Lines are considered on the same line if their vertical ranges overlap significantly
-        def sort_key(item):
-            top, height, left, content_type, content_id, content_data = item
-            # Round top position to group lines that are visually on the same line
-            # Use a quantization of ~0.5x average line height to group nearby lines
-            quantized_top = round(top / (height * 0.5)) * (height * 0.5)
-            return (quantized_top, left)
+        # Group lines by vertical overlap and sort within groups by left position
+        # This ensures proper left-to-right reading order for lines on the same visual line
+        def lines_overlap_vertically(item1, item2):
+            """Check if two items have vertically overlapping bounding boxes."""
+            top1, height1 = item1[0], item1[1]
+            top2, height2 = item2[0], item2[1]
+            bottom1 = top1 + height1
+            bottom2 = top2 + height2
+            # Lines overlap if one's bottom is >= the other's top and vice versa
+            return bottom1 >= top2 and bottom2 >= top1
 
-        content_items.sort(key=sort_key)
+        # First, sort by top position to process from top to bottom
+        content_items.sort(key=lambda item: item[0])
+        
+        # Group items that overlap vertically
+        groups = []
+        for item in content_items:
+            # Find a group this item overlaps with
+            placed = False
+            for group in groups:
+                # Check if item overlaps with any item in this group
+                if any(lines_overlap_vertically(item, group_item) for group_item in group):
+                    group.append(item)
+                    placed = True
+                    break
+            if not placed:
+                # Create a new group
+                groups.append([item])
+        
+        # Sort each group by left position, then flatten
+        content_items = []
+        for group in groups:
+            group.sort(key=lambda item: item[2])  # Sort by left position
+            content_items.extend(group)
 
         # Group lines into blocks based on bbox intersection
         current_block_lines = []
